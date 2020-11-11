@@ -13,6 +13,7 @@ make
 Compile homework code:
 ```
 make home<number>
+```
 ## Run server
 Argument: port and number of clients
 ```
