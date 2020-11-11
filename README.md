@@ -1,8 +1,11 @@
-# Description
+# **Description**
 
-Simple low-level client-server connection. Written in C language
+Simple low-level client-server connection. Written in C language.
 
-## Compile
+## Download by command:
+git clone https://github.com/KeyDiS-FBD/client_server
+
+## Compile:
 Compile source code:
 ```
 make
