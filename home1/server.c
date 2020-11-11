@@ -22,15 +22,15 @@ int init_socket(int port) {
     int server_socket = socket(PF_INET, SOCK_STREAM, 0);
     if (server_socket < 0) {
         perror("Fail: open socket");
-        _exit(ERR_SOCKET);
+        exit(ERR_SOCKET);
     }
- 
+
     //set socket option
     int socket_option = 1;
     setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &socket_option, sizeof(socket_option));
     if (server_socket < 0) {
         perror("Fail: set socket options");
-        _exit(ERR_SETSOCKETOPT);
+        exit(ERR_SETSOCKETOPT);
     }
 
     //set socket address
@@ -40,45 +40,65 @@ int init_socket(int port) {
     server_address.sin_addr.s_addr = INADDR_ANY;
     if (bind(server_socket, (struct sockaddr *) &server_address, sizeof(server_address)) < 0) {
         perror("Fail: bind socket address");
-        _exit(ERR_BIND);
+        exit(ERR_BIND);
     }
 
     //listen mode start
     if (listen(server_socket, 5) < 0) {
         perror("Fail: bind socket address");
-        _exit(ERR_LISTEN);
+        exit(ERR_LISTEN);
     }
     return server_socket;
 }
 
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    if (argc != 3) {
         puts("Incorrect args.");
-        puts("./server <port>");
+        puts("./server <port> <number of clients>");
         puts("Example:");
-        puts("./server 5000");
+        puts("./server 5000 3");
         return ERR_INCORRECT_ARGS;
     }
     int port = atoi(argv[1]);
+    int clients_num = atoi(argv[2]);
     int server_socket = init_socket(port);
+    int *client_socket = malloc(clients_num * sizeof(int));
+    char ch;
+
     while(1) {
+        // close(server_socket);
         puts("Wait for connection");
         struct sockaddr_in client_address;
+        client_address.sin_family = AF_INET;
+
         socklen_t size;
-        int client_socket = accept(server_socket, 
-                                   (struct sockaddr *) &client_address,
-                                   &size);
-        printf("connected: %s %d\n", inet_ntoa(client_address.sin_addr),
-                                     ntohs(client_address.sin_port));
-        char data[4] = {42, 43, 44, 45};
-        puts("Send data:");
-        write(client_socket, data, 4);
-        for (int i = 0; i < 4; i++) {
-            printf("%d ", data[i]);
+        for (int i = 0; i < clients_num; i++) {
+            client_socket[i] = accept(server_socket,
+                        (struct sockaddr *) &client_address,
+                        &size);
+            printf("connected:\n ip:%s\n port:%d\n",
+                   inet_ntoa(client_address.sin_addr),
+                   ntohs(client_address.sin_port));
         }
-        puts("");
-        close(client_socket);
+        puts("Recieve data:");
+        while(1) {
+            for (int i = 0; i < clients_num; i++) {
+                if (read(client_socket[i], &ch, 1) < 0) {
+                    perror("Error write");
+                    for (int i = 0; i < clients_num; i++) {
+                        close(client_socket[i]);
+                    }
+                    free(client_socket);
+                    return 1;
+                }
+                printf("%d: %c\n", i + 1, ch);
+            }
+        }
+        for (int i = 0; i < clients_num; i++) {
+            close(client_socket[i]);
+        }
+        free(client_socket);
     }
 
 

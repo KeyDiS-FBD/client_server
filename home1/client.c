@@ -16,12 +16,14 @@ enum errors {
     ERR_CONNECT
 };
 
+
+
 int init_socket(const char *ip, int port) {
     //open socket, result is socket descriptor
     int server_socket = socket(PF_INET, SOCK_STREAM, 0);
     if (server_socket < 0) {
         perror("Fail: open socket");
-        _exit(ERR_SOCKET);
+        exit(ERR_SOCKET);
     }
 
     //prepare server address
@@ -29,18 +31,44 @@ int init_socket(const char *ip, int port) {
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(port);
-    memcpy(&server_address.sin_addr, host -> h_addr_list[0], sizeof(server_address));
+    memcpy(&server_address.sin_addr, host->h_addr_list[0],
+           (socklen_t)sizeof(server_address.sin_addr));
 
     //connection
-    struct sockaddr_in sin;
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(port);
-    memcpy(&sin.sin_addr, host->h_addr_list[0], sizeof(sin.sin_addr));
-    if (connect(server_socket, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
+    if (connect(server_socket, (struct sockaddr*) &server_address,
+        (socklen_t)sizeof(server_address)) < 0) {
+
         perror("Fail: connect");
-        _exit(ERR_CONNECT);
+        exit(ERR_CONNECT);
     }
     return server_socket;
+}
+
+char *scan_word(char *word) {
+    char ch;
+    puts("Wait word:");
+    int i = 0;
+    ch = getchar();
+    while (ch != '\n') {
+        word = realloc(word, (i + 1) * sizeof(char));
+        word[i] = ch;
+        i++;
+        ch = getchar();
+    }
+    word = realloc(word, (i + 1) * sizeof(char));
+    word[i] = '\0';
+    return word;
+}
+
+void send_word(char *word, int server) {
+    puts("Send data:");
+    puts(word);
+    int i = 0;
+    while (word[i] != '\0') {
+        write(server, &word[i], 1);
+        i++;
+    }
+    write(server, &word[i], 1);
 }
 
 int main(int argc, char **argv) {
@@ -55,13 +83,10 @@ int main(int argc, char **argv) {
     int port = atoi(argv[2]);
     int server = init_socket(ip, port);
 
-    char data[4];
-    puts("Recieve data:");
-    read(server, data, 4);
-    for (int i = 0; i < 4; i++) {
-        printf("%d ", data[i]);
-    }
-    puts("");
+    char *word = NULL;
+    word = scan_word(word);
+    send_word(word, server);
     close(server);
+    free(word);
     return OK;
 }
