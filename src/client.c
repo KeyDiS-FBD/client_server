@@ -5,9 +5,13 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
+
 #include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <fcntl.h>
+
 
 enum errors {
     OK,
@@ -16,12 +20,18 @@ enum errors {
     ERR_CONNECT
 };
 
+struct data {
+    int client_num;
+    char word[26];
+    char word_end;
+};
+
 int init_socket(const char *ip, int port) {
     //open socket, result is socket descriptor
     int server_socket = socket(PF_INET, SOCK_STREAM, 0);
     if (server_socket < 0) {
         perror("Fail: open socket");
-        _exit(ERR_SOCKET);
+        exit(ERR_SOCKET);
     }
 
     //prepare server address
@@ -29,18 +39,51 @@ int init_socket(const char *ip, int port) {
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(port);
-    memcpy(&server_address.sin_addr, host -> h_addr_list[0], sizeof(server_address));
+    memcpy(&server_address.sin_addr, host->h_addr_list[0],
+           (socklen_t)sizeof(server_address.sin_addr));
 
     //connection
-    struct sockaddr_in sin;
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(port);
-    memcpy(&sin.sin_addr, host->h_addr_list[0], sizeof(sin.sin_addr));
-    if (connect(server_socket, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
-        perror("Fail: connect");
-        _exit(ERR_CONNECT);
+    if (connect(server_socket, (struct sockaddr*) &server_address,
+        (socklen_t)sizeof(server_address)) < 0) {
+
+        perror("Error: connect");
+        exit(1);
     }
     return server_socket;
+}
+
+struct data scan_message() {
+    char ch;
+    struct data message;
+    // puts("Wait word:");
+    int i = 0;
+    do {
+        ch = getchar();
+        message.word[i] = ch;
+        i++;
+        if (i > 25) {
+            perror("Error:too many characters, the word will be truncated");
+            break;
+        }
+    } while (ch != '\n' && ch != ' ');
+    message.word_end = ch;
+    message.word[i - 1] = '\0';
+    message.client_num = 0;
+    return message;
+}
+
+void send_message(struct data message, int server) {
+    // puts("Send data:");
+    // puts(message.word);
+    write(server, &message, sizeof(struct data));
+}
+
+struct data get_message(int server) {
+    struct data message;
+    if(read(server, &message, sizeof(struct data)) < 0) {
+        perror("Error read");
+    }
+    return message;
 }
 
 int main(int argc, char **argv) {
@@ -51,17 +94,50 @@ int main(int argc, char **argv) {
         puts("./client 127.0.0.1 5000");
         return ERR_INCORRECT_ARGS;
     }
+    puts("Type \"exit\" to quit");
+
+    struct data message;
+
     char *ip = argv[1];
     int port = atoi(argv[2]);
     int server = init_socket(ip, port);
+    int pid;
 
-    char data[4];
-    puts("Recieve data:");
-    read(server, data, 4);
-    for (int i = 0; i < 4; i++) {
-        printf("%d ", data[i]);
+    void handler(int signo) {
+        message.word[0] = 'e';
+        message.word[1] = 'x';
+        message.word[2] = 'i';
+        message.word[3] = 't';
+        message.word[4] = '\0';
+
+        message.word_end = '\n';
+        send_message(message, server);
+        close(server);
+        exit(0);
     }
-    puts("");
+    signal(SIGINT, handler);
+    for (int i = 0; i < 2; i++) {
+        pid = fork();
+        if (pid < 0) {
+            perror("Error fork");
+            exit(1);
+        } else if (pid == 0) {
+
+            do {
+                message = scan_message();
+                send_message(message, server);
+                printf("My message: %s\n", message.word);
+            } while (strcmp(message.word, "exit") != 0);
+            exit(0);
+        } else {
+            message = get_message(server);
+            while (strcmp(message.word, "exit") != 0) {
+                printf("%d: %s\n", message.client_num, message.word);
+                message = get_message(server);
+            }
+            exit(0);
+        }
+    }
     close(server);
     return OK;
 }
