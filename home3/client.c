@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <init_socket.h>
+
 
 enum errors {
     OK,
@@ -25,32 +27,6 @@ struct data {
     char word[26];
     char word_end;
 };
-
-int init_socket(const char *ip, int port) {
-    //open socket, result is socket descriptor
-    int server_socket = socket(PF_INET, SOCK_STREAM, 0);
-    if (server_socket < 0) {
-        perror("Fail: open socket");
-        exit(ERR_SOCKET);
-    }
-
-    //prepare server address
-    struct hostent *host = gethostbyname(ip);
-    struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(port);
-    memcpy(&server_address.sin_addr, host->h_addr_list[0],
-           (socklen_t)sizeof(server_address.sin_addr));
-
-    //connection
-    if (connect(server_socket, (struct sockaddr*) &server_address,
-        (socklen_t)sizeof(server_address)) < 0) {
-
-        perror("Error: connect");
-        exit(1);
-    }
-    return server_socket;
-}
 
 struct data scan_message() {
     char ch;
@@ -77,21 +53,6 @@ void send_message(struct data message, int server) {
     // puts(message.word);
     write(server, &message, sizeof(struct data));
 }
-
-// char *get_word(char *word, int server) {
-//     int i = 0;
-//     char ch;
-//     read(server, &ch, 1);
-//     while (ch != '\0') {
-//         word = realloc(word, (i + 1) * sizeof(char));
-//         word[i] = ch;
-//         i++;
-//         read(server, &ch, 1);
-//     }
-//     word = realloc(word, (i + 1) * sizeof(char));
-//     word[i] = '\0';
-//     return word;
-// }
 
 int main(int argc, char **argv) {
     if (argc != 3) {

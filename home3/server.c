@@ -9,6 +9,8 @@
 #include <sys/wait.h>
 #include <arpa/inet.h>
 
+#include <init_socket.h>
+
 enum errors {
     OK,
     ERR_INCORRECT_ARGS,
@@ -23,44 +25,6 @@ struct data {
     char word[26];
     char word_end;
 };
-
-int init_socket(int port) {
-    //open socket, return socket descriptor
-    int server_socket = socket(PF_INET, SOCK_STREAM, 0);
-    if (server_socket < 0) {
-        perror("Fail: open socket");
-        exit(ERR_SOCKET);
-    }
-
-    //set socket option
-    int socket_option = 1;
-    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &socket_option,
-               sizeof(socket_option));
-    if (server_socket < 0) {
-        perror("Fail: set socket options");
-        exit(ERR_SETSOCKETOPT);
-    }
-
-    //set socket address
-    struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(port);
-    server_address.sin_addr.s_addr = INADDR_ANY;
-    //Привязка сокета
-    if (bind(server_socket, (struct sockaddr *) &server_address,
-             sizeof(server_address)) < 0) {
-
-        perror("Fail: bind socket address");
-        exit(ERR_BIND);
-    }
-
-    //listen mode start
-    if (listen(server_socket, 5) < 0) {
-        perror("Fail: bind socket address");
-        exit(ERR_LISTEN);
-    }
-    return server_socket;
-}
 
 int *accept_func(int clients_num, int server_socket) {
     struct sockaddr_in *client_address = malloc(clients_num * sizeof(struct sockaddr_in));
@@ -106,7 +70,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     int clients_num = atoi(argv[2]);
-    int server_socket = init_socket(port);
+    int server_socket = init_socket(NULL, port);
     int *client_socket = NULL;
     int pid;
     struct data message;

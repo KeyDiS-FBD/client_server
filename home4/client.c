@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <init_socket.h>
 
 enum errors {
     OK,
@@ -25,32 +26,6 @@ struct data {
     char word[26];
     char word_end;
 };
-
-int init_socket(const char *ip, int port) {
-    //open socket, result is socket descriptor
-    int server_socket = socket(PF_INET, SOCK_STREAM, 0);
-    if (server_socket < 0) {
-        perror("Fail: open socket");
-        exit(ERR_SOCKET);
-    }
-
-    //prepare server address
-    struct hostent *host = gethostbyname(ip);
-    struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(port);
-    memcpy(&server_address.sin_addr, host->h_addr_list[0],
-           (socklen_t)sizeof(server_address.sin_addr));
-
-    //connection
-    if (connect(server_socket, (struct sockaddr*) &server_address,
-        (socklen_t)sizeof(server_address)) < 0) {
-
-        perror("Error: connect");
-        exit(1);
-    }
-    return server_socket;
-}
 
 struct data scan_message() {
     char ch;
@@ -126,7 +101,7 @@ int main(int argc, char **argv) {
             do {
                 message = scan_message();
                 send_message(message, server);
-                printf("My message: %s\n", message.word);
+                printf("Me: %s\n", message.word);
             } while (strcmp(message.word, "exit") != 0);
             exit(0);
         } else {
@@ -134,6 +109,7 @@ int main(int argc, char **argv) {
             while (strcmp(message.word, "exit") != 0) {
                 printf("%d: %s\n", message.client_num, message.word);
                 message = get_message(server);
+                if ()
             }
             exit(0);
         }

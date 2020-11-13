@@ -9,6 +9,8 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
+#include <init_socket.h>
+
 enum errors {
     OK,
     ERR_INCORRECT_ARGS,
@@ -16,36 +18,9 @@ enum errors {
     ERR_CONNECT
 };
 
-
-
-int init_socket(const char *ip, int port) {
-    //open socket, result is socket descriptor
-    int server_socket = socket(PF_INET, SOCK_STREAM, 0);
-    if (server_socket < 0) {
-        perror("Fail: open socket");
-        exit(ERR_SOCKET);
-    }
-
-    //prepare server address
-    struct hostent *host = gethostbyname(ip);
-    struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(port);
-    memcpy(&server_address.sin_addr, host->h_addr_list[0],
-           (socklen_t)sizeof(server_address.sin_addr));
-
-    //connection
-    if (connect(server_socket, (struct sockaddr*) &server_address,
-        (socklen_t)sizeof(server_address)) < 0) {
-
-        perror("Fail: connect");
-        exit(ERR_CONNECT);
-    }
-    return server_socket;
-}
-
-char *scan_word(char *word) {
+char *scan_word() {
     char ch;
+    char *word = NULL;
     puts("Wait word:");
     int i = 0;
     ch = getchar();
@@ -61,6 +36,7 @@ char *scan_word(char *word) {
 }
 
 void send_word(char *word, int server) {
+
     puts("Send data:");
     puts(word);
     int i = 0;
@@ -82,10 +58,18 @@ int main(int argc, char **argv) {
     char *ip = argv[1];
     int port = atoi(argv[2]);
     int server = init_socket(ip, port);
-
     char *word = NULL;
-    word = scan_word(word);
-    send_word(word, server);
+
+    puts("Type \"exit\" to quit");
+    word = scan_message();
+    while (strcmp(word, "exit") != 0) {
+        send_word(word, server);
+        free(word);
+        word = scan_word();
+    }
+    if (strcmp(word, "exit") == 0) {
+        puts("Client closed");
+    }
     close(server);
     free(word);
     return OK;

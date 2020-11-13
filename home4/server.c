@@ -9,6 +9,8 @@
 #include <sys/wait.h>
 #include <arpa/inet.h>
 
+#include <init_socket.h>
+
 enum errors {
     OK,
     ERR_INCORRECT_ARGS,
@@ -23,44 +25,6 @@ struct data {
     char word[26];
     char word_end;
 };
-
-int init_socket(int port) {
-    //open socket, return socket descriptor
-    int server_socket = socket(PF_INET, SOCK_STREAM, 0);
-    if (server_socket < 0) {
-        perror("Fail: open socket");
-        exit(ERR_SOCKET);
-    }
-
-    //set socket option
-    int socket_option = 1;
-    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &socket_option,
-               sizeof(socket_option));
-    if (server_socket < 0) {
-        perror("Fail: set socket options");
-        exit(ERR_SETSOCKETOPT);
-    }
-
-    //set socket address
-    struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(port);
-    server_address.sin_addr.s_addr = INADDR_ANY;
-    //Привязка сокета
-    if (bind(server_socket, (struct sockaddr *) &server_address,
-             sizeof(server_address)) < 0) {
-
-        perror("Fail: bind socket address");
-        exit(ERR_BIND);
-    }
-
-    //listen mode start
-    if (listen(server_socket, 5) < 0) {
-        perror("Fail: bind socket address");
-        exit(ERR_LISTEN);
-    }
-    return server_socket;
-}
 
 int *accept_func(int clients_num, int server_socket) {
     struct sockaddr_in *client_address = malloc(clients_num * sizeof(struct sockaddr_in));
@@ -86,8 +50,22 @@ struct data socket_read(int client_socket) {
     struct data message;
     if (read(client_socket, &message, sizeof(struct data)) < 0) {
         perror("Error: read");
+        message.word[0] = 'e';
+        message.word[1] = 'x';
+        message.word[2] = 'i';
+        message.word[3] = 't';
+        message.word[4] = '\0';
+        message.client_num = 0; // zero is own number
+        message.word_end = '\n';
     }
     return message;
+}
+
+int check_exit(struct data message) {
+    if (strcmp(message.word, "exit") == 0) {
+        return 1;
+    }
+    return 0;
 }
 
 void send_message(struct data message, int socket) {
@@ -107,11 +85,13 @@ int main(int argc, char** argv) {
         perror("Error: bad port number");
         return 1;
     }
+
     int clients_num = atoi(argv[2]);
     int server_socket = init_socket(port);
     int *client_socket = NULL;
     int pid;
     struct data message;
+
     puts("Recieve data:");
     while (1) {
         client_socket = accept_func(clients_num, server_socket);
@@ -125,20 +105,19 @@ int main(int argc, char** argv) {
                 while (1) {
                     do {
                         message = socket_read(client_socket[i]);
-                        if (strcmp(message.word, "exit") == 0) {
-                            break;
-                        }
-                        for (int j = 0; j < clients_num; j++) {
-                            if (i != j) {
-                                message.client_num = i + 1;
-                                send_message(message, client_socket[j]);
+                        if (check_exit(message) == 0) {
+                            for (int j = 0; j < clients_num; j++) {
+                                if (i != j) {
+                                    message.client_num = i + 1;
+                                    send_message(message, client_socket[j]);
+                                }
                             }
                         }
                         printf("%d: %s\n", i + 1, message.word);
                         fflush(stdout);
-                    } while (message.word_end != '\n');
-
-                    if (strcmp(message.word, "exit") == 0) {
+                    } while (message.word_end != '\n' || check_exit(message));
+                    if (check_exit(message)) {
+                        close(client_socket[i]);
                         break;
                     }
                 }
