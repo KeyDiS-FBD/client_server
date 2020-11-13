@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
         message.word_end = '\n';
         send_message(message, server);
         close(server);
-        return 0;
+        exit(0);
     }
     signal(SIGINT, handler);
 

@@ -6,7 +6,7 @@ CFLAGS=-Wall -Werror -lm
 all: bin include/init_socket.o bin/server bin/client delete_object
 
 delete_object:
-	rm -rf *.o
+	rm init_socket.o
 include/init_socket: include/init_socket.c
 	$(CC) $(CFLAGS) $@.c -c
 
