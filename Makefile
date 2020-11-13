@@ -3,16 +3,18 @@ CFLAGS=-Wall -Werror -lm
 
 .PHONY: all, clean
 
-all: bin include/init_socket.o bin/server bin/client
+all: bin include/init_socket.o bin/server bin/client delete_object
 
+delete_object:
+	rm -rf *.o
 include/init_socket: include/init_socket.c
-	$(CC) $(CFLAGS) $@.c -c bin/
+	$(CC) $(CFLAGS) $@.c -c
 
-%/server: %/server.c iclude/init_socket.o
-	$(CC) $(CFLAGS) $@.c include/init_socket.o -o bin/server -Iinclude
+%/server: %/server.c
+	$(CC) $(CFLAGS) $@.c init_socket.o -o bin/server -Iinclude
 
-%/client: %/client.c include/init_socket.o
-	$(CC) $(CFLAGS) $@.c include/init_socket.o -o bin/client -Iinclude
+%/client: %/client.c
+	$(CC) $(CFLAGS) $@.c init_socket.o -o bin/client -Iinclude
 
 
 %: bin %/server %/client  include/init_socket

@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     char *word = NULL;
 
     puts("Type \"exit\" to quit");
-    word = scan_message();
+    word = scan_word();
     while (strcmp(word, "exit") != 0) {
         send_word(word, server);
         free(word);
