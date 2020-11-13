@@ -109,7 +109,6 @@ int main(int argc, char **argv) {
             while (strcmp(message.word, "exit") != 0) {
                 printf("%d: %s\n", message.client_num, message.word);
                 message = get_message(server);
-                if ()
             }
             exit(0);
         }

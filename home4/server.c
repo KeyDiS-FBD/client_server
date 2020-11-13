@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     }
 
     int clients_num = atoi(argv[2]);
-    int server_socket = init_socket(port);
+    int server_socket = init_socket(NULL, port);
     int *client_socket = NULL;
     int pid;
     struct data message;
