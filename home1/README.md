@@ -10,9 +10,9 @@ client 1 send message: "hello"
 client 2 send message: "hi"
 
 server:
-1: h
-2: h
-1: e
-2: i
-1: l
--Freeze
+    1: h
+    2: h
+    1: e
+    2: i
+    1: l
+    -Freeze
