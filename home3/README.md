@@ -5,6 +5,7 @@ Everything that clients send, we print on the screen all bytes up to a space or 
 client: word
 
 ## Example:
+```
 client 1 send message: "hello"
 client 1 send message: "world"
 client 2 send message: "hi buddy"
@@ -14,3 +15,4 @@ server:
 1: world
 2: hi
 2: buddy
+```

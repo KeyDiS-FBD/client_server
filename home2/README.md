@@ -5,7 +5,7 @@ We print everything that customers send to the screen by 1 byte (letters) in the
 client: letter
 
 ## Example:
-
+```
 client 1 send message: "hello"
 client 2 send message: "hi"
 client 1 send message: "yes"
@@ -20,3 +20,4 @@ server - first send first printed:
 2: i
 1: y
 1: etc
+```

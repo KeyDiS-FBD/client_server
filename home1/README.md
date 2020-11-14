@@ -5,12 +5,10 @@ Everything that clients send in turn (1 2 3 1 2 3) is printed on the screen by 1
 client: letter
 
 ## Example:
-
+```
 client 1 send message: "hello"
 client 2 send message: "hi"
-
 server:
-```
     1: h
     2: h
     1: e
