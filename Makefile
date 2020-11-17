@@ -1,5 +1,6 @@
 CC=gcc
-CFLAGS=-Wall -Werror -lm
+CFLAGS=-Wall -Werror -lm -g
+
 
 .PHONY: all, clean
 
@@ -15,7 +16,7 @@ include/init_socket: include/init_socket.c
 	$(CC) $(CFLAGS) $@.c init_socket.o -o bin/client -Iinclude
 
 %: bin include/init_socket %/server %/client
-	"Success compile"
+	#Success compile
 	rm init_socket.o
 
 bin:
