@@ -22,37 +22,37 @@ enum errors {
     ERR_CONNECT
 };
 
-struct data {
-    int client_num;
-    char word[26];
-    char word_end;
-};
-
-struct data scan_message() {
+char *scan_word() {
     char ch;
-    struct data message;
+    char *word = NULL;
     puts("Wait word:");
-    int i = 0;
-    do {
+    int word_len = 0;
+    ch = getchar();
+    while (ch != '\n' && ch != ' ') {
+        word = realloc(word, (word_len + 1) * sizeof(char));
+        word[word_len] = ch;
+        word_len++;
         ch = getchar();
-        message.word[i] = ch;
-        i++;
-        if (i > 25) {
-            perror("Error:too many characters, the word will be truncated");
-            break;
-        }
-    } while (ch != '\n' && ch != ' ');
-    message.word_end = ch;
-    message.word[i - 1] = '\0';
-    message.client_num = 0;
-    return message;
+    }
+    word = realloc(word, (word_len + 1) * sizeof(char));
+    word[word_len] = '\0';
+    return word;
 }
 
-void send_message(struct data message, int server) {
-    // puts("Send data:");
-    // puts(message.word);
-    write(server, &message, sizeof(struct data));
+
+
+void send_word(char *word, int server) {
+    int word_len = 0;
+    do {
+        if (write(server, &word[word_len], 1) <= 0) {
+            close(server);
+            free(word);
+            exit(0);
+        }
+        word_len++;
+    } while (word[word_len - 1] != '\0');
 }
+
 
 int main(int argc, char **argv) {
     if (argc != 3) {
@@ -60,35 +60,30 @@ int main(int argc, char **argv) {
         puts("./client <ip> <port>");
         puts("Example:");
         puts("./client 127.0.0.1 5000");
-        return ERR_INCORRECT_ARGS;
+        return 1;
     }
     puts("Type \"exit\" to quit");
-
-    struct data message;
 
     char *ip = argv[1];
     int port = atoi(argv[2]);
     int server = init_socket(ip, port);
+    char *word = NULL;
 
     void handler(int signo) {
-        message.word[0] = 'e';
-        message.word[1] = 'x';
-        message.word[2] = 'i';
-        message.word[3] = 't';
-        message.word[4] = '\0';
-
-        message.word_end = '\n';
-        send_message(message, server);
+        word = "exit";
+        send_word(word, server);
         close(server);
         exit(0);
     }
     signal(SIGINT, handler);
 
     do {
-        message = scan_message();
-        send_message(message, server);
-    } while (strcmp(message.word, "exit") != 0);
+        free(word);
+        word = scan_word();
+        send_word(word, server);
+    } while (strcmp(word, "exit") != 0);
 
     close(server);
+    free(word);
     return OK;
 }

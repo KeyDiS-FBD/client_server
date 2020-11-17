@@ -20,12 +20,6 @@ enum errors {
     ERR_LISTEN
 };
 
-struct data {
-    int client_num;
-    char word[26];
-    char word_end;
-};
-
 int *accept_func(int clients_num, int server_socket) {
     struct sockaddr_in *client_address = malloc(clients_num * sizeof(struct sockaddr_in));
     int *client_socket = malloc(clients_num * sizeof(int));
@@ -46,93 +40,122 @@ int *accept_func(int clients_num, int server_socket) {
     return client_socket;
 }
 
-struct data socket_read(int client_socket) {
-    struct data message;
-    if (read(client_socket, &message, sizeof(struct data)) < 0) {
-        perror("Error: read");
-        message.word[0] = 'e';
-        message.word[1] = 'x';
-        message.word[2] = 'i';
-        message.word[3] = 't';
-        message.word[4] = '\0';
-        message.client_num = 0; // zero is own number
-        message.word_end = '\n';
+void send_word(char *word, int client_id, int server) {
+    int word_len = 0;
+    if (write(server, &client_id, 4) <= 0) {
+        close(server);
+        free(word);
+        exit(0);
     }
-    return message;
+    do {
+        if (write(server, &word[word_len], 1) <= 0) {
+            close(server);
+            free(word);
+            exit(0);
+        }
+        word_len++;
+    } while (word[word_len - 1] != '\0');
 }
 
-int check_exit(struct data message) {
-    if (strcmp(message.word, "exit") == 0) {
-        return 1;
+void close_client_socket(int *client_socket, int clients_num) {
+    for (int j = 0; j < clients_num; j++) {
+        send_word("exit", 0, client_socket[j]);
+        close(client_socket[j]);
     }
-    return 0;
+    free(client_socket);
 }
 
-void send_message(struct data message, int socket) {
-    write(socket, &message, sizeof(struct data));
+char *scan_socket_word(int *client_socket, int clients_num, int i) {
+    char *word = NULL;
+    int word_len = 0;
+    do {
+        word = realloc(word, (word_len + 1) * sizeof(char));
+        if (read(client_socket[i], &word[word_len], 1) <= 0) {
+            perror("Error read");
+            close_client_socket(client_socket, clients_num);
+            exit(1);
+        }
+        word_len++;
+    } while (word[word_len - 1] != '\0');
+    return word;
 }
 
-int main(int argc, char** argv) {
+
+
+int check_argc(int argc) {
     if (argc != 3) {
         puts("Incorrect args.");
         puts("./server <port> <number of clients>");
         puts("Example:");
         puts("./server 5000 3");
-        return ERR_INCORRECT_ARGS;
+        return 1;
+    }
+    return 0;
+}
+
+
+int main(int argc, char** argv) {
+    if (check_argc(argc)) {
+        return 1;
     }
     int port = atoi(argv[1]);
     if (port <= 0 || port >= 65535) {
-        perror("Error: bad port number");
+        perror("Error bad port number");
         return 1;
     }
 
     int clients_num = atoi(argv[2]);
     int server_socket = init_socket(NULL, port);
     int *client_socket = NULL;
+    char *word = NULL;
     int pid;
-    struct data message;
 
+    // void handler(int signo) {
+    //     // close_client_socket(client_socket, clients_num);
+    //     // close(server_socket);
+    //     // fflush(stdout);
+    //     // free(word);
+    //     exit(1);
+    // }
+    // signal(SIGINT, handler);
+
+    client_socket = accept_func(clients_num, server_socket);
     puts("Recieve data:");
-    while (1) {
-        client_socket = accept_func(clients_num, server_socket);
-
-        for (int i = 0; i < clients_num; i++) {
-            pid = fork();
-            if (pid < 0) {
-                perror("Error: fork");
-                exit(1);
-            } else if (pid == 0) {
-                while (1) {
-                    do {
-                        message = socket_read(client_socket[i]);
-                        if (check_exit(message) == 0) {
-                            for (int j = 0; j < clients_num; j++) {
-                                if (i != j) {
-                                    message.client_num = i + 1;
-                                    send_message(message, client_socket[j]);
-                                }
-                            }
+    for (int i = 0; i < clients_num; i++) {
+        pid = fork();
+        if (pid < 0) {
+            perror("Error fork:");
+            exit(1);
+        } else if (pid == 0) {
+            while (1) {
+                word = scan_socket_word(client_socket, clients_num, i);
+                if (strcmp(word, "exit") == 0) {
+                    printf("Client %d left\n", i + 1);
+                    free(word);
+                    break;
+                } else {
+                    printf("%d: %s\n", i + 1, word);
+                    for (int j = 0; j < clients_num; j++) {
+                        if (i != j) {
+                            send_word(word, i + 1, client_socket[j]);
                         }
-                        printf("%d: %s\n", i + 1, message.word);
-                        fflush(stdout);
-                    } while (message.word_end != '\n' || check_exit(message));
-                    if (check_exit(message)) {
-                        close(client_socket[i]);
-                        break;
                     }
                 }
-                exit(0);
+                fflush(stdout);
+                free(word);
             }
-
-        }
-        for (int i = 0; i < clients_num; i++) {
-            wait(NULL);
-        }
-        for (int i = 0; i < clients_num; i++) {
-            close(client_socket[i]);
+            close_client_socket(client_socket, clients_num);
+            // free(word);
+            exit(0);
         }
     }
+    for (int i = 0; i < clients_num; i++) {
+        wait(NULL);
+        close(client_socket[i]);
+    }
+    // close_client_socket(client_socket, clients_num);
     close(server_socket);
     free(client_socket);
-    return OK;
+    free(word);
+    return 0;
 }

@@ -14,51 +14,54 @@
 
 #include <init_socket.h>
 
-enum errors {
-    OK,
-    ERR_INCORRECT_ARGS,
-    ERR_SOCKET,
-    ERR_CONNECT
-};
-
-struct data {
-    int client_num;
-    char word[26];
-    char word_end;
-};
-
-struct data scan_message() {
-    char ch;
-    struct data message;
-    // puts("Wait word:");
-    int i = 0;
+void send_word(char *word, int server) {
+    int word_len = 0;
     do {
-        ch = getchar();
-        message.word[i] = ch;
-        i++;
-        if (i > 25) {
-            perror("Error:too many characters, the word will be truncated");
-            break;
+        if (write(server, &word[word_len], 1) <= 0) {
+            close(server);
+            free(word);
+            exit(0);
         }
-    } while (ch != '\n' && ch != ' ');
-    message.word_end = ch;
-    message.word[i - 1] = '\0';
-    message.client_num = 0;
-    return message;
+        word_len++;
+    } while (word[word_len - 1] != '\0');
 }
 
-void send_message(struct data message, int server) {
-    // puts("Send data:");
-    // puts(message.word);
-    write(server, &message, sizeof(struct data));
-}
-
-struct data get_message(int server) {
-    struct data message;
-    if(read(server, &message, sizeof(struct data)) < 0) {
-        perror("Error read");
+char *scan_word() {
+    char ch;
+    char *word = NULL;
+    // puts("Wait word:");
+    int word_len = 0;
+    ch = getchar();
+    while (ch != '\n' && ch != ' ') {
+        word = realloc(word, (word_len + 1) * sizeof(char));
+        word[word_len] = ch;
+        word_len++;
+        ch = getchar();
     }
-    return message;
+    word = realloc(word, (word_len + 1) * sizeof(char));
+    word[word_len] = '\0';
+    return word;
+}
+
+
+char *scan_socket_word(int server, int *client_id) {
+    char *word = NULL;
+    int word_len = 0;
+    if (read(server, client_id, 4) < 0) {
+        perror("Error read");
+        close(server);
+        exit(0);
+    }
+    do {
+        word = realloc(word, (word_len + 1) * sizeof(char));
+        if (read(server, &word[word_len], 1) < 0) {
+            perror("Error read");
+            close(server);
+            return "exit";
+        }
+        word_len++;
+    } while (word[word_len - 1] != '\0');
+    return word;
 }
 
 int main(int argc, char **argv) {
@@ -67,52 +70,49 @@ int main(int argc, char **argv) {
         puts("./client <ip> <port>");
         puts("Example:");
         puts("./client 127.0.0.1 5000");
-        return ERR_INCORRECT_ARGS;
+        return 1;
     }
     puts("Type \"exit\" to quit");
-
-    struct data message;
 
     char *ip = argv[1];
     int port = atoi(argv[2]);
     int server = init_socket(ip, port);
+    int client_id = 0;
+    char *word = NULL;
     int pid;
 
     void handler(int signo) {
-        message.word[0] = 'e';
-        message.word[1] = 'x';
-        message.word[2] = 'i';
-        message.word[3] = 't';
-        message.word[4] = '\0';
-
-        message.word_end = '\n';
-        send_message(message, server);
+        word = "exit";
+        send_word(word, server);
         close(server);
-        exit(0);
+        exit(1);
     }
     signal(SIGINT, handler);
-    for (int i = 0; i < 2; i++) {
-        pid = fork();
-        if (pid < 0) {
-            perror("Error fork");
-            exit(1);
-        } else if (pid == 0) {
 
-            do {
-                message = scan_message();
-                send_message(message, server);
-                printf("Me: %s\n", message.word);
-            } while (strcmp(message.word, "exit") != 0);
-            exit(0);
-        } else {
-            message = get_message(server);
-            while (strcmp(message.word, "exit") != 0) {
-                printf("%d: %s\n", message.client_num, message.word);
-                message = get_message(server);
-            }
-            exit(0);
+    pid = fork();
+    if (pid < 0) {
+        perror("Error fork");
+        exit(1);
+    } else if (pid == 0) {
+        word = scan_socket_word(server, &client_id);
+        while (strcmp(word, "exit") != 0) {
+            printf("%d: %s\n", client_id, word);
+            free(word);
+            word = scan_socket_word(server, &client_id);
         }
+        free(word);
+        exit(0);
+    } else {
+        do {
+            free(word);
+            word = scan_word();
+            send_word(word, server);
+            // printf("Me: %s\n", word);
+        } while (strcmp(word, "exit") != 0);
+        free(word);
+        exit(0);
     }
+    wait(NULL);
     close(server);
-    return OK;
+    return 0;
 }
