@@ -1,12 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-
 #include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -57,7 +55,7 @@ char *scan_socket_word(int server, int *client_id) {
         if (read(server, &word[word_len], 1) < 0) {
             perror("Error read");
             close(server);
-            return "exit";
+            exit(0);
         }
         word_len++;
     } while (word[word_len - 1] != '\0');

@@ -39,14 +39,14 @@ int main(int argc, char** argv) {
         struct sockaddr_in client_address;
         client_address.sin_family = AF_INET;
 
-        socklen_t size;
+        socklen_t size = sizeof(struct sockaddr_in);
         for (int i = 0; i < clients_num; i++) {
             client_socket[i] = accept(server_socket,
                         (struct sockaddr *) &client_address,
                         &size);
             printf("connected:\n ip:%s\n port:%d\n",
-                   inet_ntoa(client_address.sin_addr),
-                   ntohs(client_address.sin_port));
+                   inet_ntoa(client_address[i].sin_addr),
+                   ntohs(client_address[i].sin_port));
         }
         puts("Recieve data:");
         while(1) {
@@ -67,7 +67,5 @@ int main(int argc, char** argv) {
         }
         free(client_socket);
     }
-
-
     return OK;
 }

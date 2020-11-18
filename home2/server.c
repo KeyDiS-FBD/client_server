@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     struct sockaddr_in client_address;
     client_address.sin_family = AF_INET;
 
-    socklen_t size;
+    socklen_t size = sizeof(struct sockaddr_in);
     for (int i = 0; i < clients_num; i++) {
         client_socket[i] = accept(server_socket,
                     (struct sockaddr *) &client_address,

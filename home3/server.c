@@ -23,7 +23,7 @@ enum errors {
 int *accept_func(int clients_num, int server_socket) {
     struct sockaddr_in *client_address = malloc(clients_num * sizeof(struct sockaddr_in));
     int *client_socket = malloc(clients_num * sizeof(int));
-    socklen_t size;
+    socklen_t size = sizeof(struct sockaddr_in);
     for (int i = 0; i < clients_num; i++) {
         puts("Wait for connection");
         if ((client_socket[i] = accept(server_socket,
