@@ -11,14 +11,12 @@
 
 #include <init_socket.h>
 
-enum errors {
-    OK,
-    ERR_INCORRECT_ARGS,
-    ERR_SOCKET,
-    ERR_SETSOCKETOPT,
-    ERR_BIND,
-    ERR_LISTEN
-};
+void close_client_socket(int *client_socket, int clients_num) {
+    for (int j = 0; j < clients_num; j++) {
+        close(client_socket[j]);
+    }
+    free(client_socket);
+}
 
 int *accept_func(int clients_num, int server_socket) {
     struct sockaddr_in *client_address = malloc(clients_num * sizeof(struct sockaddr_in));
@@ -32,95 +30,96 @@ int *accept_func(int clients_num, int server_socket) {
             perror("Error accept:");
             exit(1);
         }
-        printf("Success connection, clients number: %d\n", i + 1);
-        // printf("connected:\n ip:%s\n port:%d\n",
-               // inet_ntoa(client_address.sin_addr),
-               // ntohs(client_address.sin_port));
+        printf("Connected:\n   ip: %s\n   port: %d\n   client number: %d\n",
+               inet_ntoa(client_address[i].sin_addr),
+               ntohs(client_address[i].sin_port),
+               i + 1);
     }
     free(client_address);
     return client_socket;
 }
 
-void close_client_socket(int *client_socket, int clients_num) {
-    for (int j = 0; j < clients_num; j++) {
-        close(client_socket[j]);
-    }
-    free(client_socket);
-}
-
-char *scan_socket_word(int *client_socket, int clients_num, int i) {
+char *scan_socket_word(int *client_socket, int i) {
     char *word = NULL;
     int word_len = 0;
     do {
         word = realloc(word, (word_len + 1) * sizeof(char));
-        if (read(client_socket[i], &word[word_len], 1) < 0) {
-            perror("Error read");
-            close_client_socket(client_socket, clients_num);
-            return "exit";
+        if (read(client_socket[i], &word[word_len], 1) <= 0) {
+            // perror("Error read");
+            printf("Client %d left\n", i + 1);
+            // close_client_socket(client_socket, clients_num);
+            close(client_socket[i]);
+            free(word);
+
+            exit(0);
         }
         word_len++;
     } while (word[word_len - 1] != '\0');
     return word;
 }
 
-int main(int argc, char** argv) {
+int check_argc(int argc) {
     if (argc != 3) {
         puts("Incorrect args.");
         puts("./server <port> <number of clients>");
         puts("Example:");
         puts("./server 5000 3");
-        return ERR_INCORRECT_ARGS;
+        return 1;
     }
+    return 0;
+}
+
+void client_recieve(int *client_socket, int i) {
+    char *word = NULL;
+    while (1) {
+        word = scan_socket_word(client_socket, i);
+        if (strcmp(word, "exit") == 0) {
+            printf("Client %d left\n", i + 1);
+            break;
+        } else {
+            printf("%d: %s\n", i + 1, word);
+        }
+        fflush(stdout);
+        free(word);
+    }
+    close(client_socket[i]);
+    free(word);
+    exit(0);
+}
+
+int main(int argc, char** argv) {
+    if (check_argc(argc)) {
+        return 0;
+    }
+
     int port = atoi(argv[1]);
+    int clients_num = atoi(argv[2]);
+    int server_socket = init_socket(NULL, port);
+    int *client_socket = NULL;
+    int pid;
+
     if (port <= 0 || port >= 65535) {
         perror("Error bad port number:");
         return 1;
     }
-    int clients_num = atoi(argv[2]);
-    int server_socket = init_socket(NULL, port);
-    int *client_socket = NULL;
-    char *word = NULL;
-    int pid;
 
-    // void handler(int signo) {
-    //     close_client_socket(client_socket, clients_num);
-    //     close(server_socket);
-    //     free(word);
-    //     exit(0);
-    // }
-    // signal(SIGINT, handler);
+    client_socket = accept_func(clients_num, server_socket);
+    close(server_socket);
 
     puts("Recieve data:");
-    // while (1) {
-    client_socket = accept_func(clients_num, server_socket);
     for (int i = 0; i < clients_num; i++) {
         pid = fork();
         if (pid < 0) {
             perror("Error fork:");
             exit(1);
         } else if (pid == 0) {
-            do {
-                // free(word);
-                word = scan_socket_word(client_socket, clients_num, i);
-                if (strcmp(word, "exit") == 0) {
-                    printf("Client %d left\n", i + 1);
-                    break;
-                } else {
-                    printf("%d: %s\n", i + 1, word);
-                }
-                fflush(stdout);
-            } while (strcmp(word, "exit") != 0);
-            close(client_socket[i]);
-            free(word);
-            exit(0);
+            client_recieve(client_socket, i);
         }
     }
+
     for (int i = 0; i < clients_num; i++) {
         wait(NULL);
     }
-    // close_client_socket(client_socket, clients_num);
-    close(server_socket);
     free(client_socket);
-    free(word);
     return 0;
 }

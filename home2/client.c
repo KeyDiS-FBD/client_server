@@ -43,7 +43,7 @@ void send_word(char *word, int server) {
         write(server, &word[i], 1);
         i++;
     }
-    write(server, &word[i], 1);
+    // write(server, &word[i], 1);
 }
 
 int main(int argc, char **argv) {

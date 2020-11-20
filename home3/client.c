@@ -14,18 +14,9 @@
 
 #include <init_socket.h>
 
-
-enum errors {
-    OK,
-    ERR_INCORRECT_ARGS,
-    ERR_SOCKET,
-    ERR_CONNECT
-};
-
 char *scan_word() {
     char ch;
     char *word = NULL;
-    puts("Wait word:");
     int word_len = 0;
     ch = getchar();
     while (ch != '\n' && ch != ' ') {
@@ -69,14 +60,7 @@ int main(int argc, char **argv) {
     int server = init_socket(ip, port);
     char *word = NULL;
 
-    void handler(int signo) {
-        word = "exit";
-        send_word(word, server);
-        close(server);
-        exit(0);
-    }
-    signal(SIGINT, handler);
-
+    puts("Wait word:");
     do {
         free(word);
         word = scan_word();
@@ -85,5 +69,5 @@ int main(int argc, char **argv) {
 
     close(server);
     free(word);
-    return OK;
+    return 0;
 }

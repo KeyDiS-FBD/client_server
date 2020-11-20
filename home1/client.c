@@ -36,15 +36,19 @@ char *scan_word() {
 }
 
 void send_word(char *word, int server) {
-
     puts("Send data:");
     puts(word);
     int i = 0;
     while (word[i] != '\0') {
-        write(server, &word[i], 1);
+        if (write(server, &word[i], 1) <= 0) {
+            puts("Client closed");
+            close(server);
+            free(word);
+            exit(0);
+        }
         i++;
     }
-    write(server, &word[i], 1);
+    // write(server, &word[i], 1);
 }
 
 int main(int argc, char **argv) {
